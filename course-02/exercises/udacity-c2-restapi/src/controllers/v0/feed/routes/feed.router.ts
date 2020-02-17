@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, response } from 'express';
 import { FeedItem } from '../models/FeedItem';
 import { requireAuth } from '../../users/routes/auth.router';
 import * as AWS from '../../../../aws';
@@ -18,13 +18,41 @@ router.get('/', async (req: Request, res: Response) => {
 
 //@TODO
 //Add an endpoint to GET a specific resource by Primary Key
+router.get('/:id', async (req: Request, res: Response) => {
+    let {id} =  req.params;
+    if(id){
+    
+    
+    const item = await FeedItem.findByPk(req.params.id);
+    if(item.url) {
+    item.url = AWS.getGetSignedUrl(item.url);
+    }
+   
+    res.send(item);
+}else{
+    res.status(400).send({ message: 'Id is required or malformed' });
+}
+});
 
 // update a specific resource
 router.patch('/:id', 
     requireAuth, 
-    async (req: Request, res: Response) => {
+    async (req: Request, res: Response, next) => {
         //@TODO try it yourself
-        res.send(500).send("not implemented")
+        let {caption, url} = req.body;
+        
+        if(!caption || !url){
+            res.status(400).send({message :"Caption and url are required"})
+        }else{
+            let {id} = req.params;
+            if(!id){
+                res.status(400).send({message :"Id is required"})
+            }
+           FeedItem.update({url:url,caption:caption},{returning:true, where:{id}}).then(([response,updatedRecord])=>{
+            res.status(200).send(updatedRecord);
+           }).catch(next);
+           
+        }
 });
 
 
